@@ -2,9 +2,9 @@ package server
 
 import (
 	"bufio"
+	"fmt"
 	"net"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -27,6 +27,9 @@ type Server struct {
 
 	running  bool
 	shutdown bool
+
+	startTime    time.Time
+	shutdownTime time.Time
 
 	clients *ClientStore
 }
@@ -69,6 +72,7 @@ func (s *Server) ListenAndServer() (err error) {
 	defer listener.Close()
 
 	s.listener = listener
+	s.startTime = time.Now()
 
 	for {
 		conn, err := s.listener.Accept()
@@ -84,35 +88,47 @@ func (s *Server) ListenAndServer() (err error) {
 			ReadBuffer:  s.maxReadBuffer,
 		}
 
-		s.handleClient(client)
+		go s.clientHandler(client)
 	}
 }
 
-// handleClient
-func (s *Server) handleClient(c *Client) error {
+// clientHandler
+func (s *Server) clientHandler(c *Client) {
+
 	defer func() {
 		c.Conn.Close()
+		c.Finished = time.Now() // just statistics
 		s.delClient(c)
+		fmt.Printf("cerrando todo")
 	}()
 
-	s.addClient(c)
+	s.addClient(c) // just statistics
 
-	r := bufio.NewReader(c.Conn)
-	w := bufio.NewWriter(c.Conn)
+	rw := bufio.NewReadWriter(bufio.NewReader(c.Conn), bufio.NewWriter(c.Conn))
 
-	scanr := bufio.NewScanner(r)
+	scanner := bufio.NewScanner(rw)
+
+	// set the max data to read
+	readBuffer := make([]byte, s.maxReadBuffer)
+	scanner.Buffer(readBuffer, s.maxReadBuffer)
+
 	for {
-		scanned := scanr.Scan()
-		if !scanned {
-			if err := scanr.Err(); err != nil {
-				return err
-			}
+		if ok := scanner.Scan(); !ok {
 			break
 		}
-		w.WriteString(strings.ToUpper(scanr.Text()) + "\n")
-		w.Flush()
+
+		// -->
+		//scanner.Bytes() data readed!
+
+		fmt.Printf("data size: %v, buffer size: %v \n", len(scanner.Bytes()), cap(scanner.Bytes()))
+
+		// <---
+
+		rw.WriteString("clients connected: " + strconv.Itoa(s.clients.Count()) + "\n")
+		rw.Flush()
+
+		break
 	}
-	return nil
 }
 
 func (s *Server) addClient(c *Client) {

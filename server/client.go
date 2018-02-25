@@ -9,9 +9,11 @@ import (
 
 // Client is all information about Client connetion
 type Client struct {
-	ID      uuid.UUID
-	Conn    net.Conn
-	Created time.Time
+	ID   uuid.UUID
+	Conn net.Conn
+
+	Created  time.Time
+	Finished time.Time
 
 	IdleTimeout time.Duration
 
