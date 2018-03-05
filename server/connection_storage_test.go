@@ -8,9 +8,9 @@ import (
 	"github.com/christiangda/ingester/server"
 )
 
-func TestClientsStore_CountSet(t *testing.T) {
-	c1 := &server.Client{}
-	cs := server.NewClientStore()
+func TestConnectionStore_CountSet(t *testing.T) {
+	c1 := &server.Connection{}
+	cs := server.NewConnectionStore()
 	cs.Set(uuid.New(), c1)
 	expected := 1
 	actual := cs.Count()
@@ -19,9 +19,9 @@ func TestClientsStore_CountSet(t *testing.T) {
 	}
 }
 
-func TestClientsStore_CountPut(t *testing.T) {
-	c1 := &server.Client{}
-	cs := server.NewClientStore()
+func TestConnectionStore_CountPut(t *testing.T) {
+	c1 := &server.Connection{}
+	cs := server.NewConnectionStore()
 	cs.Put(c1)
 	expected := 1
 	actual := cs.Count()
@@ -30,9 +30,9 @@ func TestClientsStore_CountPut(t *testing.T) {
 	}
 }
 
-func TestClientsStore_CountPutAndDelete(t *testing.T) {
-	c1 := &server.Client{}
-	cs := server.NewClientStore()
+func TestConnectionStore_CountPutAndDelete(t *testing.T) {
+	c1 := &server.Connection{}
+	cs := server.NewConnectionStore()
 	key := cs.Put(c1)
 	cs.Delete(key)
 	expected := 0

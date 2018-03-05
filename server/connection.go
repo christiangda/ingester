@@ -7,8 +7,8 @@ import (
 	"github.com/google/uuid"
 )
 
-// Client is all information about Client connetion
-type Client struct {
+// Connection is all information about Connection connetion
+type Connection struct {
 	ID   uuid.UUID
 	Conn net.Conn
 
@@ -20,18 +20,18 @@ type Client struct {
 	ReadBuffer int
 }
 
-func (c *Client) Write(b []byte) {
+func (c *Connection) Write(b []byte) {
 }
 
-func (c *Client) Read(b []byte) {
+func (c *Connection) Read(b []byte) {
 	c.updateTimeout()
 }
 
-func (c *Client) close() {
+func (c *Connection) close() {
 	c.Conn.Close()
 }
 
-func (c *Client) updateTimeout() {
+func (c *Connection) updateTimeout() {
 	duration := time.Now().Add(c.IdleTimeout)
 	c.Conn.SetDeadline(duration)
 }

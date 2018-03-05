@@ -1,0 +1,8 @@
+[server]
+ip = "localhost"
+port = 4356
+max_concurrent_connections = 1024
+
+[connections]
+idle_timeout = 2
+max_read_buffer = 1024

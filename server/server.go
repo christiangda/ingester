@@ -13,28 +13,22 @@ import (
 
 // Server return new server
 type Server struct {
+	cfg Config
+
 	sync.RWMutex
 
-	ip       string
-	port     int
-	protocol string
-
 	listener net.Listener
-
-	maxReadBuffer     int
-	maxIdleTimeout    time.Duration
-	maxConcurrentConn int
 
 	running  bool
 	shutdown bool
 
-	startTime    time.Time
-	shutdownTime time.Time
+	startTime time.Time
 
-	clients *ClientStore
+	connStore *ConnectionStore
 }
 
-const (
+var (
+
 	// DefaultIdleTimeout for connections
 	DefaultIdleTimeout = (time.Second * 2)
 
@@ -43,29 +37,29 @@ const (
 
 	// DefaultConcurrentConn for server
 	DefaultConcurrentConn = 1024
+
+	startTime time.Time
 )
 
+func init() {
+	startTime = time.Now().UTC()
+}
+
 // NewServer return
-func NewServer(ip string, port int, protocol string) *Server {
+func NewServer(config Config) *Server {
 
 	return &Server{
-		ip:       ip,
-		port:     port,
-		protocol: protocol,
+		cfg: config,
 
-		maxReadBuffer:     DefaultReadBuffer,
-		maxIdleTimeout:    DefaultIdleTimeout,
-		maxConcurrentConn: DefaultConcurrentConn,
-
-		clients: NewClientStore(),
+		connStore: NewConnectionStore(),
 	}
 }
 
 //ListenAndServer start
 func (s *Server) ListenAndServer() (err error) {
-	ipAndPort := s.ip + ":" + strconv.Itoa(s.port)
+	ipAndPort := s.cfg.Host + ":" + strconv.Itoa(s.cfg.Port)
 
-	listener, err := net.Listen(s.protocol, ipAndPort)
+	listener, err := net.Listen(s.cfg.Protocol, ipAndPort)
 	if err != nil {
 		return err
 	}
@@ -80,37 +74,37 @@ func (s *Server) ListenAndServer() (err error) {
 			continue
 		}
 
-		client := &Client{
+		Connection := &Connection{
 			ID:          uuid.New(),
 			Conn:        conn,
 			Created:     time.Now(),
-			IdleTimeout: s.maxIdleTimeout,
-			ReadBuffer:  s.maxReadBuffer,
+			IdleTimeout: s.cfg.MaxIdleTimeout,
+			ReadBuffer:  s.cfg.MaxReadBuffer,
 		}
 
-		go s.clientHandler(client)
+		go s.ConnectionHandler(Connection)
 	}
 }
 
-// clientHandler
-func (s *Server) clientHandler(c *Client) {
+// ConnectionHandler
+func (s *Server) ConnectionHandler(c *Connection) {
 
 	defer func() {
 		c.Conn.Close()
 		c.Finished = time.Now() // just statistics
-		s.delClient(c)
+		s.delConnection(c)
 		fmt.Printf("cerrando todo")
 	}()
 
-	s.addClient(c) // just statistics
+	s.addConnection(c) // just statistics
 
 	rw := bufio.NewReadWriter(bufio.NewReader(c.Conn), bufio.NewWriter(c.Conn))
 
 	scanner := bufio.NewScanner(rw)
 
 	// set the max data to read
-	readBuffer := make([]byte, s.maxReadBuffer)
-	scanner.Buffer(readBuffer, s.maxReadBuffer)
+	readBuffer := make([]byte, s.cfg.MaxReadBuffer)
+	scanner.Buffer(readBuffer, s.cfg.MaxReadBuffer)
 
 	for {
 		if ok := scanner.Scan(); !ok {
@@ -124,40 +118,40 @@ func (s *Server) clientHandler(c *Client) {
 
 		// <---
 
-		rw.WriteString("clients connected: " + strconv.Itoa(s.clients.Count()) + "\n")
+		rw.WriteString("Connections connected: " + strconv.Itoa(s.connStore.Count()) + "\n")
 		rw.Flush()
 
 		break
 	}
 }
 
-func (s *Server) addClient(c *Client) {
-	s.clients.Set(c.ID, c)
+func (s *Server) addConnection(c *Connection) {
+	s.connStore.Set(c.ID, c)
 }
 
-func (s *Server) delClient(c *Client) {
-	s.clients.Delete(c.ID)
+func (s *Server) delConnection(c *Connection) {
+	s.connStore.Delete(c.ID)
 }
 
-// Clients return the number of clients
-func (s *Server) Clients() int {
-	return s.clients.Count()
+// Connections return the number of Connections
+func (s *Server) Connections() int {
+	return s.connStore.Count()
 }
 
 // SetReadBuffer set the max read buffer size for connection
 func (s *Server) SetReadBuffer(limit int) {
-	s.maxReadBuffer = limit
+	s.cfg.MaxReadBuffer = limit
 }
 
 // SetIdleTimeout set the max idle timeout for connection
 func (s *Server) SetIdleTimeout(limit int) {
 
-	s.maxIdleTimeout = (time.Second * 2)
+	s.cfg.MaxIdleTimeout = (time.Second * 2)
 }
 
 // SetMaxConnections set the max num of concurrent conections
 func (s *Server) SetMaxConnections(limit int) {
-	s.maxConcurrentConn = limit
+	s.cfg.MaxConcurrentConn = limit
 }
 
 // IsRunning validate if server is running
